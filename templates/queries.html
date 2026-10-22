@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Запросы — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Поисковые запросы</h1>
+  <form method="post" action="/queries/seed">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn" type="submit">Добавить стандартный набор</button>
+  </form>
+</div>
+<p class="muted">Запросы выполняются по возрастанию приоритета: сначала Пермь (регион 72), потом Россия (113). Опыт: noExperience, between1And3, between3And6, moreThan6.</p>
+
+<section class="card">
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th class="num">Приоритет</th><th>Название</th><th>Текст запроса</th><th>Регион</th><th>Удалёнка</th><th>Опыт</th><th>Активен</th><th></th></tr></thead>
+  <tbody>
+  {% for q in items %}
+    <tr>
+      <td class="num">{{ q.priority }}</td>
+      <td>{{ q.title }}</td>
+      <td><code>{{ q.text }}</code></td>
+      <td>{{ {72: 'Пермь', 113: 'Россия'}.get(q.area, q.area) }}</td>
+      <td>{{ 'да' if q.only_remote else '—' }}</td>
+      <td class="small">{{ q.experience }}</td>
+      <td>{{ 'да' if q.is_active else 'нет' }}</td>
+      <td class="nowrap">
+        <button class="btn btn-small" type="button" data-edit-query='{{ {"id": q.id, "title": q.title, "text": q.text, "area": q.area, "only_remote": q.only_remote, "experience": q.experience, "exclude_words": q.exclude_words, "priority": q.priority, "is_active": q.is_active} | tojson }}'>Изменить</button>
+        <form method="post" action="/queries/{{ q.id }}/delete" class="inline" data-confirm="Удалить запрос «{{ q.title }}»?">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="btn btn-small btn-danger" type="submit">Удалить</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="8" class="muted">Запросов нет — добавьте стандартный набор или свой.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+
+<section class="card">
+  <h2 id="query-form-title">Новый запрос</h2>
+  <form method="post" action="/queries" class="form form-grid" id="query-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="query_id" value="">
+    <label>Название <input type="text" name="title" required maxlength="128"></label>
+    <label>Текст запроса hh <input type="text" name="text" required maxlength="512" placeholder='python AND (fastapi OR django)'></label>
+    <label>Регион
+      <select name="area"><option value="72">Пермь (72)</option><option value="113" selected>Россия (113)</option></select>
+    </label>
+    <label>Опыт <input type="text" name="experience" value="between1And3,between3And6"></label>
+    <label>Стоп-слова (через запятую) <input type="text" name="exclude_words"></label>
+    <label>Приоритет <input type="number" name="priority" value="100" min="0" max="10000"></label>
+    <label class="check"><input type="checkbox" name="only_remote" value="1"> Только удалёнка</label>
+    <label class="check"><input type="checkbox" name="is_active" value="1" checked> Активен</label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Сохранить</button>
+      <button class="btn btn-ghost" type="reset" id="query-form-reset">Очистить</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

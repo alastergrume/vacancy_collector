@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Статистика — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Статистика</h1>
+  <form method="post" action="/collect">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn btn-primary" type="submit">Запустить сбор сейчас</button>
+  </form>
+</div>
+
+{% if hh_token_missing %}
+<div class="flash flash-error">Не задан токен приложения hh (HH_APP_TOKEN в configs/.env) — сбор не запустится.
+  Получите его один раз в <a href="https://dev.hh.ru/admin" target="_blank" rel="noopener">dev.hh.ru/admin</a>.</div>
+{% endif %}
+
+<section class="tiles">
+  <div class="tile"><span class="tile-label">Всего вакансий</span><span class="tile-value" data-stat="total">{{ stats.total }}</span></div>
+  <div class="tile"><span class="tile-label">Новые</span><span class="tile-value">{{ stats.by_status['new'] }}</span></div>
+  <div class="tile"><span class="tile-label">Откликов</span><span class="tile-value">{{ stats.by_status['applied'] }}</span></div>
+  <div class="tile"><span class="tile-label">Пермь</span><span class="tile-value">{{ stats.perm_total }}</span></div>
+  <div class="tile"><span class="tile-label">Удалёнка</span><span class="tile-value">{{ stats.remote_total }}</span></div>
+</section>
+
+<div class="grid-2">
+  <section class="card">
+    <h2>Новые вакансии за 7 дней</h2>
+    <div class="bars" id="bars" data-days='{{ days | tojson }}'></div>
+  </section>
+
+  <section class="card">
+    <h2>Последний запуск</h2>
+    {% set r = stats.last_run %}
+    {% if r %}
+    <dl class="kv">
+      <dt>Статус</dt><dd><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span> ({{ 'по расписанию' if r.trigger.value == 'schedule' else 'вручную' }})</dd>
+      <dt>Начало</dt><dd>{{ r.started_at | local }}</dd>
+      <dt>Длительность</dt><dd>{{ r.duration_sec ~ ' с' if r.duration_sec is not none else 'идёт…' }}</dd>
+      <dt>Запросов к hh</dt><dd>{{ r.requests_made }}</dd>
+      <dt>Найдено / отсеяно</dt><dd>{{ r.found_total }} / {{ r.filtered_out }}</dd>
+      <dt>Новых / обновлено</dt><dd>{{ r.new_count }} / {{ r.updated_count }}</dd>
+      {% if r.error %}<dt>Ошибка</dt><dd class="error-text">{{ r.error }}</dd>{% endif %}
+    </dl>
+    {% else %}
+    <p class="muted">Сбор ещё не запускался.</p>
+    {% endif %}
+  </section>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <h2>Воронка</h2>
+    <table class="table compact">
+      <tbody>
+      {% for s in statuses %}
+        <tr><td>{{ s.label }}</td><td class="num">{{ stats.by_status[s.value] }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Google Диск</h2>
+    {% if stats.drive_connected %}
+      <p>Подключён. Последняя выгрузка: {{ stats.last_export_at | local }}
+        {% if stats.last_export_status %}<span class="badge badge-{{ stats.last_export_status }}">{{ stats.last_export_status }}</span>{% endif %}</p>
+    {% else %}
+      <p class="muted">Не подключён.</p>
+    {% endif %}
+    <a class="btn" href="/drive">Настройки Диска</a>
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-head"><h2>Последние запуски</h2><a href="/runs">все запуски</a></div>
+  {% include "_runs_table.html" %}
+</section>
+{% endblock %}

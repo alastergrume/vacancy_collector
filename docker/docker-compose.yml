@@ -1,0 +1,71 @@
+# Запуск из корня проекта: docker compose -f docker/docker-compose.yml up -d --build
+name: vacancy_collector
+
+x-app: &app
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  env_file: ../configs/.env
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: ../configs/.env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Одноразовый контейнер: применяет миграции перед стартом приложения
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+
+  web:
+    <<: *app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8000:8000"   # наружу — через nginx/Caddy с HTTPS
+
+  worker:
+    <<: *app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["celery", "-A", "tasks.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]
+
+  beat:
+    <<: *app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["celery", "-A", "tasks.celery_app:celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
+
+volumes:
+  pg_data:
+  redis_data:

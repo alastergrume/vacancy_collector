@@ -1,0 +1,24 @@
+<div class="table-wrap">
+<table class="table">
+  <thead>
+    <tr><th>Начало</th><th>Тип</th><th>Статус</th><th class="num">Запросов</th><th class="num">Найдено</th><th class="num">Отсеяно</th><th class="num">Новых</th><th class="num">Обновлено</th><th>Ошибка</th></tr>
+  </thead>
+  <tbody>
+  {% for r in runs %}
+    <tr>
+      <td>{{ r.started_at | local }}</td>
+      <td>{{ 'расписание' if r.trigger.value == 'schedule' else 'вручную' }}</td>
+      <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
+      <td class="num">{{ r.requests_made }}</td>
+      <td class="num">{{ r.found_total }}</td>
+      <td class="num">{{ r.filtered_out }}</td>
+      <td class="num">{{ r.new_count }}</td>
+      <td class="num">{{ r.updated_count }}</td>
+      <td class="error-text">{{ r.error or '' }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="9" class="muted">Запусков пока нет</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

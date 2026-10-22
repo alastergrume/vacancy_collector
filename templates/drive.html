@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Google Диск — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Google Диск</h1></div>
+
+<section class="card">
+  {% if not configured %}
+    <div class="flash flash-error">Не заданы GDRIVE_CLIENT_ID и GDRIVE_CLIENT_SECRET в configs/.env.</div>
+    <p>В Google Cloud Console создайте OAuth-клиент типа «Веб-приложение» и добавьте адрес перенаправления:</p>
+    <p><code>{{ redirect_uri }}</code></p>
+  {% elif record %}
+    <p>Подключён аккаунт: <b>{{ record.account_email or 'неизвестен' }}</b></p>
+    <p class="muted">Папка: {{ folder_id or 'корень Диска' }}. Таблица обновляется в одном и том же файле.</p>
+    <div class="actions">
+      <form method="post" action="/drive/export"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn btn-primary" type="submit">Выгрузить сейчас</button></form>
+      <form method="post" action="/drive/disconnect" data-confirm="Отключить Google Диск?"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn btn-danger" type="submit">Отключить</button></form>
+    </div>
+  {% else %}
+    <p>Диск не подключён. После подключения таблица вакансий будет выгружаться после каждого сбора.</p>
+    <form method="post" action="/drive/connect"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn btn-primary" type="submit">Подключить Google Диск</button></form>
+    <p class="muted small">Адрес перенаправления для Google Cloud Console: <code>{{ redirect_uri }}</code></p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>История выгрузок</h2>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Время</th><th>Статус</th><th class="num">Строк</th><th>Файл</th><th>Ошибка</th></tr></thead>
+    <tbody>
+    {% for e in exports %}
+      <tr>
+        <td>{{ e.created_at | local }}</td>
+        <td><span class="badge badge-{{ e.status.value }}">{{ e.status.value }}</span></td>
+        <td class="num">{{ e.rows }}</td>
+        <td>{% if e.file_url %}<a href="{{ e.file_url }}" target="_blank" rel="noopener">открыть</a>{% endif %}</td>
+        <td class="error-text">{{ e.error or '' }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="muted">Выгрузок пока не было</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}
